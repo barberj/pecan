@@ -6,6 +6,10 @@ from pecan.configuration import Config
 from pecan.decorators    import transactional, after_commit
 from formencode          import Schema, validators
 from webtest             import TestApp
+import pytest
+
+# Needed for py.test skipif 
+import sys
 
 
 class TestHooks(object):
@@ -861,43 +865,11 @@ class TestTransactionHook(object):
         assert run_hook[3] == 'rollback'
         assert run_hook[4] == 'clear'
 
+    @pytest.mark.skipif("sys.version_info < (2,6)")
     def test_transaction_hook_with_transactional_class_decorator(self):
-        run_hook = []
+        from helpers import create_transactional_hook
+        run_hook, RootController = create_transactional_hook()
         
-        @transactional()
-        class RootController(object):
-            @expose()
-            def index(self):
-                run_hook.append('inside')
-                return 'Hello, World!'
-
-            @expose()
-            def redirect(self):
-                redirect('/')
-                
-            @expose()
-            @transactional(False)
-            def redirect_rollback(self):
-                redirect('/')
-
-            @expose()
-            def error(self):
-                return [][1]
-
-            @expose(generic=True)
-            def generic(self):
-                pass
-
-            @generic.when(method='GET')
-            def generic_get(self):
-                run_hook.append('inside')
-                return 'generic get'
-
-            @generic.when(method='POST')
-            def generic_post(self):
-                run_hook.append('inside')
-                return 'generic post'
-                
         def gen(event):
             return lambda: run_hook.append(event)
 
