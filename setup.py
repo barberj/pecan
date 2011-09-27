@@ -1,6 +1,21 @@
-from setuptools import setup, Command, find_packages
+import sys
+
+#
+# Python3 support
+#
+if sys.version < '3':
+    from setuptools import setup, Command, find_packages
+    extra_requirements = ["WebOb >= 1.0.0"]
+    extra = dict()
+else:
+    import distribute_setup
+    distribute_setup.use_setuptools()
+    from setuptools import setup
+    extra_requirements = ["WebOb >= 1.2a1"]
+    extra = {'use_2to3':True}
 
 version = '0.1'
+
 
 #
 # integration with py.test for `python setup.py test`
@@ -20,16 +35,17 @@ class PyTest(Command):
 # determine requirements
 #
 requirements = [
-  "WebOb >= 1.0.0", 
-  "WebCore >= 1.0.0",
+  "WebCore       >= 1.0.0",
   "simplegeneric >= 0.7",
-  "Mako >= 0.4.0",
-  "Paste >= 1.7.5.1",
-  "PasteScript >= 1.7.3",
-  "formencode >= 1.2.2",
-  "WebTest >= 1.2.2",
-  "pytest >= 2.0.3"
+  "Mako          >= 0.4.0",
+  "Paste         >= 1.7.5.1",
+  "PasteScript   >= 1.7.3",
+  "formencode    >= 1.2.2",
+  "WebTest       >= 1.2.2",
+  "pytest        >= 2.0.3"
 ]
+requirements.extend(extra_requirements)
+
 
 try:
     import json
@@ -72,4 +88,5 @@ setup(
     [console_scripts]
     pecan = pecan.commands:CommandRunner.handle_command_line
     """,
+    **extra
 )
