@@ -10,7 +10,7 @@ if sys.version < '3':
 else:
     import distribute_setup
     distribute_setup.use_setuptools()
-    from setuptools import setup
+    from setuptools import setup, Command, find_packages
     extra_requirements = ["WebOb >= 1.2a1"]
     extra = {'use_2to3':True}
 
