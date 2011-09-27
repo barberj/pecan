@@ -39,6 +39,7 @@ requirements = [
   "simplegeneric >= 0.7",
   "Mako          >= 0.4.0",
   "Paste         >= 1.7.5.1",
+  "PasteDeploy",
   "PasteScript   >= 1.7.3",
   "formencode    >= 1.2.2",
   "WebTest       >= 1.2.2",
