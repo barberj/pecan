@@ -865,176 +865,158 @@ class TestTransactionHook(object):
         assert run_hook[3] == 'rollback'
         assert run_hook[4] == 'clear'
 
+
+class TestTransactionalClassDecorator(object):
+
+    def setup(self):
+        # this might look a bit weird but it is necessary to
+        # avoid SyntaxError raising when not testing on Python2.5
+        if sys.version_info >= (2,6):
+            from helpers import create_transactional_hook
+            self.run_hook, self.RootController = create_transactional_hook()
+            self.app = TestApp(make_app(self.RootController(), hooks=[
+                TransactionHook(
+                    start    = self.gen('start'),
+                    start_ro = self.gen('start_ro'),
+                    commit   = self.gen('commit'),
+                    rollback = self.gen('rollback'),
+                    clear    = self.gen('clear')
+                )
+            ]))
+
+    def gen(self, event):
+        return lambda: self.run_hook.append(event)
+
     @pytest.mark.skipif("sys.version_info < (2,6)")
     def test_transaction_hook_with_transactional_class_decorator(self):
-        from helpers import create_transactional_hook
-        run_hook, RootController = create_transactional_hook()
-        
-        def gen(event):
-            return lambda: run_hook.append(event)
+        response = self.app.get('/')
 
-        app = TestApp(make_app(RootController(), hooks=[
-            TransactionHook(
-                start    = gen('start'),
-                start_ro = gen('start_ro'),
-                commit   = gen('commit'),
-                rollback = gen('rollback'),
-                clear    = gen('clear')
-            )
-        ]))
-
-        response = app.get('/')
         assert response.status_int == 200
-        assert response.body == 'Hello, World!'
+        assert response.body       == 'Hello, World!'
+        assert len(self.run_hook)  == 6
+        assert self.run_hook[0]    == 'start_ro'
+        assert self.run_hook[1]    == 'clear'
+        assert self.run_hook[2]    == 'start'
+        assert self.run_hook[3]    == 'inside'
+        assert self.run_hook[4]    == 'commit'
+        assert self.run_hook[5]    == 'clear'
 
-        assert len(run_hook) == 6
-        assert run_hook[0] == 'start_ro'
-        assert run_hook[1] == 'clear'
-        assert run_hook[2] == 'start'
-        assert run_hook[3] == 'inside'
-        assert run_hook[4] == 'commit'
-        assert run_hook[5] == 'clear'
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_root_uri_post(self):
+        response = self.app.post('/')
 
-        run_hook = []
-
-        # test hooks for /
-
-        response = app.post('/')
         assert response.status_int == 200
-        assert response.body == 'Hello, World!'
+        assert response.body       == 'Hello, World!'
+        assert len(self.run_hook)  == 4
+        assert self.run_hook[0]    == 'start'
+        assert self.run_hook[1]    == 'inside'
+        assert self.run_hook[2]    == 'commit'
+        assert self.run_hook[3]    == 'clear'
 
-        assert len(run_hook) == 4
-        assert run_hook[0] == 'start'
-        assert run_hook[1] == 'inside'
-        assert run_hook[2] == 'commit'
-        assert run_hook[3] == 'clear'
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_redirect_get(self):
+        """ controller should always be transactional even on get redirects """
+        response = self.app.get('/redirect')
 
-        #
-        # test hooks for GET /redirect
-        # This controller should always be transactional,
-        # even in the case of redirects
-        #
-        
-        run_hook = []
-        response = app.get('/redirect')
         assert response.status_int == 302
-        assert len(run_hook) == 5
-        assert run_hook[0] == 'start_ro'
-        assert run_hook[1] == 'clear'        
-        assert run_hook[2] == 'start'
-        assert run_hook[3] == 'commit'
-        assert run_hook[4] == 'clear'
-        
-        #
-        # test hooks for POST /redirect
-        # This controller should always be transactional,
-        # even in the case of redirects
-        #
-        
-        run_hook = []
-        
-        response = app.post('/redirect')
+        assert len(self.run_hook)  == 5
+        assert self.run_hook[0]    == 'start_ro'
+        assert self.run_hook[1]    == 'clear'
+        assert self.run_hook[2]    == 'start'
+        assert self.run_hook[3]    == 'commit'
+        assert self.run_hook[4]    == 'clear'
+
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_redirect_post(self):
+        """ controller should always be transactional even on post redirects """
+        response = self.app.post('/redirect')
+
         assert response.status_int == 302
-        assert len(run_hook) == 3
-        assert run_hook[0] == 'start'
-        assert run_hook[1] == 'commit'
-        assert run_hook[2] == 'clear'
-        
-        #
-        # test hooks for GET /redirect_rollback
-        # This controller should always be transactional,
-        # *except* in the case of redirects
-        #
-        run_hook = []
-        
-        response = app.get('/redirect_rollback')
+        assert len(self.run_hook)  == 3
+        assert self.run_hook[0]    == 'start'
+        assert self.run_hook[1]    == 'commit'
+        assert self.run_hook[2]    == 'clear'
+
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_except_for_get_redirects(self):
+        """ controllers should always be transactional except for get redirects """
+        response = self.app.get('/redirect_rollback')
+
         assert response.status_int == 302
-        assert len(run_hook) == 5
-        assert run_hook[0] == 'start_ro'
-        assert run_hook[1] == 'clear'        
-        assert run_hook[2] == 'start'        
-        assert run_hook[3] == 'rollback'
-        assert run_hook[4] == 'clear'
-        
-        #
-        # test hooks for POST /redirect_rollback
-        # This controller should always be transactional,
-        # *except* in the case of redirects
-        #
-        
-        run_hook = []
-        
-        response = app.post('/redirect_rollback')
+        assert len(self.run_hook)  == 5
+        assert self.run_hook[0]    == 'start_ro'
+        assert self.run_hook[1]    == 'clear'
+        assert self.run_hook[2]    == 'start'
+        assert self.run_hook[3]    == 'rollback'
+        assert self.run_hook[4]    == 'clear'
+
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_except_for_post_redirects(self):
+        """ controllers should always be transactional except for post redirects """
+        response = self.app.post('/redirect_rollback')
+
         assert response.status_int == 302
-        assert len(run_hook) == 3
-        assert run_hook[0] == 'start'
-        assert run_hook[1] == 'rollback'
-        assert run_hook[2] == 'clear'
-        
-        #
-        # Exceptions (other than HTTPFound) should *always*
-        # rollback no matter what
-        #
-        run_hook = []        
-        
+        assert len(self.run_hook)  == 3
+        assert self.run_hook[0]    == 'start'
+        assert self.run_hook[1]    == 'rollback'
+        assert self.run_hook[2]    == 'clear'
+
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_get_exceptions(self):
+        """ exceptions on get other than HTTPFound should always rollback no matter what """
         try:
-            response = app.post('/error')
+            response = self.app.post('/error')
         except IndexError:
             pass
 
-        assert len(run_hook) == 3
-        assert run_hook[0] == 'start'
-        assert run_hook[1] == 'rollback'
-        assert run_hook[2] == 'clear'
-        
-        run_hook = []        
-        
+        assert len(self.run_hook) == 3
+        assert self.run_hook[0]   == 'start'
+        assert self.run_hook[1]   == 'rollback'
+        assert self.run_hook[2]   == 'clear'
+
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_get_exceptions(self):
+        """ exceptions on post other than HTTPFound should always rollback no matter what """
         try:
-            response = app.get('/error')
+            response = self.app.get('/error')
         except IndexError:
             pass
 
-        assert len(run_hook) == 5
-        assert run_hook[0] == 'start_ro'
-        assert run_hook[1] == 'clear'
-        assert run_hook[2] == 'start'
-        assert run_hook[3] == 'rollback'
-        assert run_hook[4] == 'clear'
+        assert len(self.run_hook) == 5
+        assert self.run_hook[0]   == 'start_ro'
+        assert self.run_hook[1]   == 'clear'
+        assert self.run_hook[2]   == 'start'
+        assert self.run_hook[3]   == 'rollback'
+        assert self.run_hook[4]   == 'clear'
 
-        #
-        # test hooks for GET /generic
-        # This controller should always be transactional,
-        #
-        
-        run_hook = []
-        
-        response = app.get('/generic')
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_generic_gets(self):
+        """ generic gets should always be transactional """
+        response = self.app.get('/generic')
+
         assert response.status_int == 200
-        assert response.body == 'generic get'
-        assert len(run_hook) == 6
-        assert run_hook[0] == 'start_ro'
-        assert run_hook[1] == 'clear'
-        assert run_hook[2] == 'start'
-        assert run_hook[3] == 'inside'
-        assert run_hook[4] == 'commit'
-        assert run_hook[5] == 'clear'
-        
-        #
-        # test hooks for POST /generic
-        # This controller should always be transactional,
-        #
-        
-        run_hook = []
-        
-        response = app.post('/generic')
+        assert response.body       == 'generic get'
+        assert len(self.run_hook)  == 6
+        assert self.run_hook[0]    == 'start_ro'
+        assert self.run_hook[1]    == 'clear'
+        assert self.run_hook[2]    == 'start'
+        assert self.run_hook[3]    == 'inside'
+        assert self.run_hook[4]    == 'commit'
+        assert self.run_hook[5]    == 'clear'
+
+    @pytest.mark.skipif("sys.version_info < (2,6)")
+    def test_transaction_hooks_for_generic_posts(self):
+        """ generic post should always be transactional """
+        response = self.app.post('/generic')
+
         assert response.status_int == 200
-        assert response.body == 'generic post'
-        assert len(run_hook) == 4
-        assert run_hook[0] == 'start'
-        assert run_hook[1] == 'inside'
-        assert run_hook[2] == 'commit'
-        assert run_hook[3] == 'clear'
-        
+        assert response.body       == 'generic post'
+        assert len(self.run_hook)  == 4
+        assert self.run_hook[0]    == 'start'
+        assert self.run_hook[1]    == 'inside'
+        assert self.run_hook[2]    == 'commit'
+        assert self.run_hook[3]    == 'clear'
+
 
 class TestRequestViewerHook(object):
     
