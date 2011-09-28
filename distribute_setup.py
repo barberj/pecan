@@ -148,18 +148,18 @@ def use_setuptools(version=DEFAULT_VERSION, download_base=DEFAULT_URL,
             return
         except pkg_resources.VersionConflict:
             e = sys.exc_info()[1]
-            if was_imported:
-                sys.stderr.write(
-                "The required version of distribute (>=%s) is not available,\n"
-                "and can't be installed while this script is running. Please\n"
-                "install a more recent version first, using\n"
-                "'easy_install -U distribute'."
-                "\n\n(Currently using %r)\n" % (version, e.args[0]))
-                sys.exit(2)
-            else:
-                del pkg_resources, sys.modules['pkg_resources']    # reload ok
-                return _do_download(version, download_base, to_dir,
-                                    download_delay)
+#            if was_imported:
+#                sys.stderr.write(
+#                "The required version of distribute (>=%s) is not available,\n"
+#                "and can't be installed while this script is running. Please\n"
+#                "install a more recent version first, using\n"
+#                "'easy_install -U distribute'."
+#                "\n\n(Currently using %r)\n" % (version, e.args[0]))
+#                sys.exit(2)
+#            else:
+            del pkg_resources, sys.modules['pkg_resources']    # reload ok
+            return _do_download(version, download_base, to_dir,
+                                download_delay)
         except pkg_resources.DistributionNotFound:
             return _do_download(version, download_base, to_dir,
                                 download_delay)
