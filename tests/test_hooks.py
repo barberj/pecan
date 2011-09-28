@@ -7,8 +7,6 @@ from pecan.decorators    import transactional, after_commit
 from formencode          import Schema, validators
 from webtest             import TestApp
 import pytest
-
-# Needed for py.test skipif 
 import sys
 
 
